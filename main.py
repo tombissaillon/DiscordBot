@@ -1,10 +1,6 @@
 #TO DO
     #EXCEL FILE LOGIC FOR POINTS
-    #TIME LOG OF WHEN TASKS ARE COMPLETED
     #Need to work on command to add points to users when task completed.
-    #Need to keep stamps and logs of what task and when completed.
-    #Greeting Message?
-    #change starting points to one when registered
     #create .txt file to send with commands
 
 #DONE
@@ -14,6 +10,10 @@
     #Create event command?
     #Current Errors: why file will not update when information is added.
     #add points command
+    #Greeting Message
+    #change starting points to one when registered
+    #TIME LOG OF WHEN TASKS ARE COMPLETED
+    #Need to keep stamps and logs of what task and when completed.
 
 
 #LIBRARY IMPORTS **IMPORTANT INFORMATION TO COMMITING TO CODE**
@@ -41,6 +41,7 @@ bot = commands.Bot(command_prefix= ["!","/"], intents = intents)
 currentTime = datetime.datetime.now()
 registered_users = {}
 eventName = ""
+global points
 
 #On bot start
 @bot.event
@@ -50,6 +51,19 @@ async def on_ready():
 
     #Displays bot status
     await bot.change_presence(activity=discord.Game(name="Type /commands_help for help!"))
+
+@bot.event
+async def on_guild_join(guild):
+    # This function will be called when the bot joins a new server
+    general_channel = discord.utils.get(guild.text_channels, name="general")
+    
+    if general_channel:
+        # Send a welcome message to the general channel
+        await general_channel.send("Hello, I'm your friendly bot! Type !commands_help to see a list of commands.")
+    else:
+        # If there is no 'general' channel, send a message to the first available text channel
+        first_text_channel = guild.text_channels[0]
+        await first_text_channel.send("Hello, I'm your friendly bot! Type !commands_help to see a list of commands.")
 
 #Print commands to user
 @bot.command()
@@ -73,7 +87,10 @@ async def event(ctx):
 
 @bot.command()
 async def register(ctx, member: discord.Member):
+    global user_id
+    
     user_id = str(member.id)
+
     if user_id not in registered_users:
         registered_users[user_id] = {"points": 0, "tasks_completed": 0}
         await ctx.send(f"Registered {member.display_name}")
@@ -81,7 +98,7 @@ async def register(ctx, member: discord.Member):
         await ctx.send(f"{member.display_name} is already registered.")
 
 @bot.command()
-async def user_info(ctx, member: discord.Member):
+async def points(ctx, member: discord.Member):
     user_id = str(member.id)
     if user_id in registered_users:
         info = registered_users[user_id]
@@ -94,42 +111,62 @@ async def add_points(ctx, user: discord.Member, points: int):
     global registered_users
 
     # Check if the user is registered
-    if str(user.id) not in registered_users:
+    user_id = str(user.id)
+    if user_id in registered_users:
+        # Add points to the user
+        registered_users[user_id]['points'] += points
+
+        # Send a message confirming the addition
+        await ctx.send(f"Added {points} points to {user.display_name}. They now have {registered_users[user_id]['points']} points.")
+    else:
         await ctx.send(f"{user.display_name} is not registered.")
-        return
 
-    # Add points to the user
-    registered_users[str(user.id)]['points'] += points
+@bot.command()
+async def tasks(ctx, user: discord.Member, points: int = 1):
+    current_time = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
-    await ctx.send(f"Added {points} points to {user.display_name}. They now have {registered_users[str(user.id)]['points']} points.")
+    user_id = str(user.id)
+    if user_id in registered_users:
+        # Update user data
+        registered_users[user_id]['points'] += points
+        registered_users[user_id]['tasks_completed'] += 1
 
+        # Store task with timestamp and total points
+        task_log = registered_users[user_id].get('task_log', [])
+        total_points = registered_users[user_id]['points']
+        task_log.append({"timestamp": current_time, "points": total_points})
+        registered_users[user_id]['task_log'] = task_log
 
+        # Send a message including the current timestamp
+        await ctx.send(f"Task completed by {user.display_name}! Current time: {current_time}")
 
+        # List all completed tasks with timestamps
+        task_list = [f"{task['timestamp']} - {task['points']} points" for task in task_log]
+        await ctx.send(f"{user.display_name}'s completed tasks (Total Points: {total_points}):\n" + '\n'.join(task_list))
+    else:
+        await ctx.send(f"{user.display_name} is not registered.")
 
-
-
-
-
-
-#print excel file
 @bot.command()
 async def print(ctx):
     workbook = xlsxwriter.Workbook('RegUsers.xlsx')
     worksheet = workbook.add_worksheet()
 
-    #Setting up workbook
+    # Setting up workbook
     worksheet.write('A1', 'Registered Users')
     worksheet.write('C1', 'Points')
     worksheet.write('E1', 'Tasks Completed')
 
-    #Start from row 2 to write user data
+    # Start from row 2 to write user data
     row = 1
-    for user, info in registered_users.items():
-        #Write user name to column A
-        worksheet.write(row, 0, user)
-        #Write points to column C
+    for user_id, info in registered_users.items():
+        # Fetch the discord.Member object using user ID
+        user = await bot.fetch_user(int(user_id))
+
+        # Write user name to column A
+        worksheet.write(row, 0, user.display_name)
+        # Write points to column C
         worksheet.write(row, 2, info['points'])
-        #Write tasks completed to column E
+        # Write tasks completed to column E
         worksheet.write(row, 4, info['tasks_completed'])
         row += 1
 
@@ -156,4 +193,4 @@ async def select_winner(ctx):
     await ctx.send(f"@everyone, the winner of event " + eventName + " is: {winner_member.display_name}")
 
 #bot token
-bot.run("MTE4MTI2NTc0MDE2NzQwMTU4Mw.GYptH9.V9UEPdWiM6AVb91hd-9tqw-LFLPGexrxO4iqE0")
+bot.run("MTE4MTI2NTc0MDE2NzQwMTU4Mw.Ge31_M.I-mKocGkFWknz7_maunzDsRueVVGxjjZx969CY")
