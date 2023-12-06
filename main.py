@@ -1,8 +1,5 @@
 #TO DO
-    #EXCEL FILE LOGIC FOR POINTS
-    #Need to work on command to add points to users when task completed.
-    #create .txt file to send with commands
-
+    
 #DONE
     #list of commands
     #Change bot commands to also accept / when inputted into chat, and to be seen when entering commands
@@ -14,6 +11,9 @@
     #change starting points to one when registered
     #TIME LOG OF WHEN TASKS ARE COMPLETED
     #Need to keep stamps and logs of what task and when completed.
+    #create .txt file to send with commands
+    #fix username when winner is selected
+    #Excel logic for tasks
 
 
 #LIBRARY IMPORTS **IMPORTANT INFORMATION TO COMMITING TO CODE**
@@ -55,7 +55,7 @@ async def on_ready():
 @bot.event
 async def on_guild_join(guild):
     # This function will be called when the bot joins a new server
-    general_channel = discord.utils.get(guild.text_channels, name="general")
+    general_channel = discord.utils.get(guild.text_channels, name = "general")
     
     if general_channel:
         # Send a welcome message to the general channel
@@ -68,12 +68,7 @@ async def on_guild_join(guild):
 #Print commands to user
 @bot.command()
 async def commands_help(ctx):
-    await ctx.send("!commands_help")
-    await ctx.send("uploads list of commands to server chat")
-    await ctx.send("!register (user name)")
-    await ctx.send("registers user name to excel file to keep track of points")
-    await ctx.send("!print")
-    await ctx.send("prints excel file to view users, points, tasks with timestamps")
+    await ctx.send(file=discord.File('Commands_for_Discord_Reward_Bot.txt'))
 
 @bot.command()
 async def createEvent(ctx, name):
@@ -131,18 +126,17 @@ async def tasks(ctx, user: discord.Member, points: int = 1):
         registered_users[user_id]['points'] += points
         registered_users[user_id]['tasks_completed'] += 1
 
-        # Store task with timestamp and total points
+        # Store task with timestamp
         task_log = registered_users[user_id].get('task_log', [])
-        total_points = registered_users[user_id]['points']
-        task_log.append({"timestamp": current_time, "points": total_points})
+        task_log.append({"timestamp": current_time, "points": points, "completed_by": ctx.author.display_name})
         registered_users[user_id]['task_log'] = task_log
 
         # Send a message including the current timestamp
         await ctx.send(f"Task completed by {user.display_name}! Current time: {current_time}")
 
         # List all completed tasks with timestamps
-        task_list = [f"{task['timestamp']} - {task['points']} points" for task in task_log]
-        await ctx.send(f"{user.display_name}'s completed tasks (Total Points: {total_points}):\n" + '\n'.join(task_list))
+        task_list = [f"{task['timestamp']} - {task['points']} points (Completed by: {task['completed_by']})" for task in task_log]
+        await ctx.send(f"{user.display_name}'s completed tasks:\n" + '\n'.join(task_list))
     else:
         await ctx.send(f"{user.display_name} is not registered.")
 
@@ -155,6 +149,7 @@ async def print(ctx):
     worksheet.write('A1', 'Registered Users')
     worksheet.write('C1', 'Points')
     worksheet.write('E1', 'Tasks Completed')
+    worksheet.write('G1', 'Task Log')  # Add a column for Task Log
 
     # Start from row 2 to write user data
     row = 1
@@ -168,6 +163,12 @@ async def print(ctx):
         worksheet.write(row, 2, info['points'])
         # Write tasks completed to column E
         worksheet.write(row, 4, info['tasks_completed'])
+
+        # Write task log to column G
+        task_log = info.get('task_log', [])
+        task_log_str = '\n'.join([f"{task['timestamp']} - {task['points']} points (Completed by: {task['completed_by']})" for task in task_log])
+        worksheet.write(row, 6, task_log_str)
+
         row += 1
 
     workbook.close()
@@ -177,20 +178,22 @@ async def print(ctx):
 async def select_winner(ctx):
     global registered_users
 
-    # Check if there are registered users
     if not registered_users:
         await ctx.send("No registered users.")
+        return
+    
+    if not eventName:
+        await ctx.send("No event name set. Use !createEvent to set an event name.")
         return
 
     # Calculate the probability based on points
     total_points = sum(info['points'] for info in registered_users.values())
     probabilities = [info['points'] / total_points for info in registered_users.values()]
 
-    # Select a winner based on probabilities
     winner_id = random.choices(list(registered_users.keys()), weights=probabilities, k=1)[0]
     winner_member = await ctx.guild.fetch_member(int(winner_id))
 
-    await ctx.send(f"@everyone, the winner of event " + eventName + " is: {winner_member.display_name}")
+    await ctx.send(f"@everyone, the winner of event {eventName} is: {winner_member.display_name}")
 
 #bot token
-bot.run("MTE4MTI2NTc0MDE2NzQwMTU4Mw.Ge31_M.I-mKocGkFWknz7_maunzDsRueVVGxjjZx969CY")
+bot.run("MTE4MTI2NTc0MDE2NzQwMTU4Mw.GugB0V.CJKGDNoT0XFitznlVDe2p7y0Ia3UIK-QBLxcwA")

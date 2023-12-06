@@ -1,0 +1,26 @@
+!commands_help
+uploads list of commands to server chat
+
+!create_event
+creates the name of the event
+
+!event
+displays the name of the event
+
+!register @(user name)
+registers user name to excel file to keep track of points
+
+!points @(user name)
+displays how many points the user has and how many tasks were completed
+
+!add_points @(user name) (points)
+adds desired amount of points to user
+
+!tasks @(user name)
+displays the times in which user completed tasks
+
+!print
+prints excel file to view users, points, tasks with timestamps
+
+!select_winner
+picks a user based on probability to win the event
